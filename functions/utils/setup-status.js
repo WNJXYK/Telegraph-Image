@@ -1,4 +1,5 @@
 import { isEmptyBinding } from './http.js';
+import { hasMetadataStore, metadataProvider, postgresConnectionString } from './metadata-store.js';
 
 // Deployment self-check. Most support requests about this project are a missing
 // binding or an unset variable that only surfaces as a failed upload much later,
@@ -12,7 +13,8 @@ export function getSetupStatus(env) {
   const storage = storageStatus(env);
   const checks = {
     storage,
-    dashboard: env.img_url ? 'ok' : 'unbound',
+    dashboard: hasMetadataStore(env) ? 'ok' : 'unbound',
+    metadata: metadataStatus(env),
     moderation: moderationStatus(env),
   };
 
@@ -22,10 +24,27 @@ export function getSetupStatus(env) {
       storage: storage.state,
       storageProvider: storage.provider,
       dashboard: checks.dashboard,
+      metadataProvider: checks.metadata.provider,
+      metadata: checks.metadata.state,
       moderation: checks.moderation,
     },
     problems: problemsFor(storage, checks),
   };
+}
+
+function metadataStatus(env) {
+  const provider = metadataProvider(env);
+  if (provider === 'postgres') {
+    return {
+      provider,
+      state: postgresConnectionString(env) ? 'ok' : 'missing-config',
+    };
+  }
+  if (provider === 'kv') {
+    return { provider, state: env.img_url ? 'ok' : 'missing-binding' };
+  }
+  if (provider === 'none') return { provider, state: 'disabled' };
+  return { provider, state: 'unknown-provider' };
 }
 
 function storageStatus(env) {
@@ -97,10 +116,22 @@ function problemsFor(storage, checks) {
   }
 
   if (checks.dashboard === 'unbound') {
-    problems.push({
-      severity: 'info',
-      message: '后台图片管理未启用：需要绑定名为 img_url 的 KV 命名空间（「设置 → 函数 → KV 命名空间绑定」）。短链接功能也依赖该绑定。',
-    });
+    if (checks.metadata.provider === 'postgres' && checks.metadata.state === 'missing-config') {
+      problems.push({
+        severity: 'info',
+        message: '后台图片管理未启用：METADATA_PROVIDER=postgres 时需要设置密钥 POSTGRES_URL（或 DATABASE_URL）并重新部署。',
+      });
+    } else if (checks.metadata.state === 'unknown-provider') {
+      problems.push({
+        severity: 'info',
+        message: '后台图片管理未启用：METADATA_PROVIDER 可用值为 kv、postgres 或 none。',
+      });
+    } else {
+      problems.push({
+        severity: 'info',
+        message: '后台图片管理未启用：绑定名为 img_url 的 KV，或设置 METADATA_PROVIDER=postgres 及 POSTGRES_URL。短链接功能也依赖元数据存储。',
+      });
+    }
   }
 
   if (checks.moderation === 'cloudflare-ai-missing-binding') {

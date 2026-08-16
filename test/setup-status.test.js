@@ -71,6 +71,34 @@ describe('deployment setup status', function () {
     assert.ok(status.problems.some(p => p.severity === 'info' && p.message.includes('img_url')));
   });
 
+  it('reports PostgreSQL metadata as configured from POSTGRES_URL', async function () {
+    const { getSetupStatus } = await getModule();
+    const status = getSetupStatus({
+      TG_Bot_Token: 'token',
+      TG_Chat_ID: '-100',
+      METADATA_PROVIDER: 'postgres',
+      POSTGRES_URL: 'postgresql://user:secret@example.invalid/db',
+    });
+
+    assert.strictEqual(status.checks.dashboard, 'ok');
+    assert.strictEqual(status.checks.metadataProvider, 'postgres');
+    assert.strictEqual(status.checks.metadata, 'ok');
+    assert.ok(!JSON.stringify(status).includes('postgresql://'));
+  });
+
+  it('explains when PostgreSQL is selected without a connection string', async function () {
+    const { getSetupStatus } = await getModule();
+    const status = getSetupStatus({
+      TG_Bot_Token: 'token',
+      TG_Chat_ID: '-100',
+      METADATA_PROVIDER: 'postgres',
+    });
+
+    assert.strictEqual(status.checks.dashboard, 'unbound');
+    assert.strictEqual(status.checks.metadata, 'missing-config');
+    assert.ok(status.problems.some(p => p.message.includes('POSTGRES_URL')));
+  });
+
   it('auto-detects the moderation provider from bindings', async function () {
     const { getSetupStatus } = await getModule();
     const base = { TG_Bot_Token: 't', TG_Chat_ID: '-1', img_url: {} };

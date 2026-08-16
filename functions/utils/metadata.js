@@ -1,3 +1,5 @@
+import { getMetadataStore } from './metadata-store.js';
+
 export const LIST_TYPE = {
   NONE: 'None',
   WHITE: 'White',
@@ -35,12 +37,16 @@ export function normalizeMetadata(metadata, id) {
 }
 
 export async function getMetadata(env, id) {
-  const record = await env.img_url.getWithMetadata(id);
+  const store = getMetadataStore(env);
+  if (!store) return null;
+  const record = await store.getWithMetadata(id);
   return record?.metadata || null;
 }
 
 export async function getOrCreateMetadata(env, id) {
-  const record = await env.img_url.getWithMetadata(id);
+  const store = getMetadataStore(env);
+  if (!store) return createDefaultMetadata(id);
+  const record = await store.getWithMetadata(id);
 
   if (record?.metadata) {
     return normalizeMetadata(record.metadata, id);
@@ -52,7 +58,9 @@ export async function getOrCreateMetadata(env, id) {
 }
 
 export async function putMetadata(env, id, metadata) {
-  await env.img_url.put(id, '', { metadata });
+  const store = getMetadataStore(env);
+  if (!store) throw new Error('Metadata storage is not configured');
+  await store.put(id, '', { metadata });
 }
 
 export async function updateMetadata(env, id, updater) {

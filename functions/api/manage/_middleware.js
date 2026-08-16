@@ -5,6 +5,7 @@ import {
     unauthorizedResponse,
 } from "../../utils/auth.js";
 import { isEmptyBinding } from "../../utils/http.js";
+import { hasMetadataStore } from "../../utils/metadata-store.js";
 
 async function errorHandling(context) {
     try {
@@ -15,7 +16,7 @@ async function errorHandling(context) {
   }
 
   function authentication(context) {
-    if (isEmptyBinding(context.env.img_url)) {
+    if (!hasMetadataStore(context.env)) {
         return dashboardDisabledResponse();
     }
 

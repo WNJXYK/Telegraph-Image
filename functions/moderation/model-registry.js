@@ -1,3 +1,5 @@
+import { getMetadataStore } from '../utils/metadata-store.js';
+
 // Resolves which Workers AI models moderation should try, in order.
 //
 // Three tiers:
@@ -47,8 +49,9 @@ async function getLiveModels(env) {
         return null;
     }
 
-    if (env.img_url) {
-        const record = await env.img_url.getWithMetadata(CACHE_KEY);
+    const store = getMetadataStore(env);
+    if (store) {
+        const record = await store.getWithMetadata(CACHE_KEY);
         if (record?.value) {
             try {
                 return JSON.parse(record.value);
@@ -74,8 +77,8 @@ async function getLiveModels(env) {
             .filter(entry => entry?.name && !isDeprecated(entry))
             .map(entry => ({ name: entry.name, task: entry.task?.name || '' }));
 
-        if (models.length && env.img_url) {
-            await env.img_url.put(CACHE_KEY, JSON.stringify(models), {
+        if (models.length && store) {
+            await store.put(CACHE_KEY, JSON.stringify(models), {
                 expirationTtl: CACHE_TTL_SECONDS,
             });
         }

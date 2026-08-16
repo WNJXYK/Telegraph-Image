@@ -8,6 +8,7 @@ import {
 import { isShortUrlsEnabled, looksLikeShortId, resolveShortId } from "../utils/shortlink.js";
 import { getServingProvider } from "../storage/index.js";
 import { getModerationProvider } from "../moderation/index.js";
+import { hasMetadataStore } from "../utils/metadata-store.js";
 
 export async function onRequest(context) {
     const {
@@ -38,9 +39,9 @@ export async function onRequest(context) {
         return withFileHeaders(response, fileId);
     }
 
-    // Check if KV storage is available
-    if (!env.img_url) {
-        console.log("KV storage not available, returning image directly");
+    // Metadata management is optional. Files still work without KV/PostgreSQL.
+    if (!hasMetadataStore(env)) {
+        console.log("Metadata storage not available, returning image directly");
         return withFileHeaders(response, fileId);  // Directly return image response, terminate execution
     }
 
@@ -78,7 +79,7 @@ export async function onRequest(context) {
 // Short ids are resolved before the file URL is built, so short links work for
 // Telegraph-stored files as well as Bot API files.
 async function resolveRequestedId(env, requestedId) {
-    if (!env.img_url || !isShortUrlsEnabled(env) || requestedId.includes('.') || !looksLikeShortId(requestedId)) {
+    if (!hasMetadataStore(env) || !isShortUrlsEnabled(env) || requestedId.includes('.') || !looksLikeShortId(requestedId)) {
         return requestedId;
     }
 
