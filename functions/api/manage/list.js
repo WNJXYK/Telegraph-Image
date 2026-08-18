@@ -1,5 +1,6 @@
 import { jsonResponse } from "../../utils/http.js";
 import { isInternalKey } from "../../utils/kv-keys.js";
+import { getMetadataStore } from "../../utils/metadata-store.js";
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -12,7 +13,7 @@ export async function onRequest(context) {
 
   const cursor = url.searchParams.get("cursor") || undefined;
   const prefix = url.searchParams.get("prefix") || undefined;
-  const value = await env.img_url.list({ limit, cursor, prefix });
+  const value = await getMetadataStore(env).list({ limit, cursor, prefix });
 
   return jsonResponse({
     ...value,

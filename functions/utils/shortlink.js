@@ -1,4 +1,5 @@
 import { isEmptyBinding } from './http.js';
+import { getMetadataStore } from './metadata-store.js';
 
 const SHORT_KEY_PREFIX = 'short:';
 const DEFAULT_LENGTH = 6;
@@ -45,11 +46,13 @@ export function generateShortId(length) {
 }
 
 export async function allocateShortId(env, generate = generateShortId) {
+  const store = getMetadataStore(env);
+  if (!store) return null;
   const length = shortIdLength(env);
 
   for (let attempt = 0; attempt < MAX_ALLOCATION_ATTEMPTS; attempt++) {
     const candidate = generate(length);
-    const existing = await env.img_url.getWithMetadata(SHORT_KEY_PREFIX + candidate);
+    const existing = await store.getWithMetadata(SHORT_KEY_PREFIX + candidate);
     const taken = existing && (existing.value !== null || existing.metadata !== null);
     if (!taken) {
       return candidate;
@@ -60,14 +63,20 @@ export async function allocateShortId(env, generate = generateShortId) {
 }
 
 export async function putShortLink(env, shortId, longId) {
-  await env.img_url.put(SHORT_KEY_PREFIX + shortId, longId, { metadata: { target: longId } });
+  const store = getMetadataStore(env);
+  if (!store) return;
+  await store.put(SHORT_KEY_PREFIX + shortId, longId, { metadata: { target: longId } });
 }
 
 export async function resolveShortId(env, shortId) {
-  const record = await env.img_url.getWithMetadata(SHORT_KEY_PREFIX + shortId);
+  const store = getMetadataStore(env);
+  if (!store) return null;
+  const record = await store.getWithMetadata(SHORT_KEY_PREFIX + shortId);
   return record?.metadata?.target || record?.value || null;
 }
 
 export async function deleteShortLink(env, shortId) {
-  await env.img_url.delete(SHORT_KEY_PREFIX + shortId);
+  const store = getMetadataStore(env);
+  if (!store) return;
+  await store.delete(SHORT_KEY_PREFIX + shortId);
 }

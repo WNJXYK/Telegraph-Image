@@ -86,6 +86,8 @@ Optional environment variables (enable features as needed, see the [Optional Fea
 | `ModerateContentApiKey` | `abc123`              | Legacy image review via [moderatecontent.com](https://moderatecontent.com/). **The service has stopped accepting new registrations** — new deployments should use Workers AI instead. |
 | `ALLOWED_REFERERS`  | `myblog.com,*.example.com` | Anti-hotlinking: comma-separated list of hostnames allowed to embed your files. Unset = no restriction. Empty referers (direct visits, API clients) and your own domain are always allowed. |
 | `STORAGE_PROVIDER`  | `telegram`                | Where uploaded files are stored: `telegram` (default) or `r2` (requires the `img_r2` binding). Files remain readable regardless of the current setting — each file remembers where it lives. |
+| `METADATA_PROVIDER` | `postgres`                | Image metadata backend: `kv` (default, uses `img_url`), `postgres`, or `none`. Run `sql/postgres.sql` before enabling PostgreSQL. |
+| `POSTGRES_URL`      | `postgresql://...`        | Full PostgreSQL connection string, preferably stored as a secret. Required by `METADATA_PROVIDER=postgres`; `DATABASE_URL` is also accepted. |
 | `SITE_NAME`         | `My Images`               | Site name shown in the homepage header (served to the frontend via `GET /api/config`). |
 | `SITE_TITLE`        | `My Images \| Home`       | Browser tab title of the homepage.                                                    |
 | `SITE_BACKGROUND`   | `https://.../bg.jpg`      | Background image URL for the homepage.                                                |
@@ -128,6 +130,15 @@ Bindings (`Settings` -> `Functions`):
 ### Image Management Dashboard
 
 Disabled by default. To enable: in the Cloudflare Pages backend, click `Settings` -> `Functions` -> `KV namespace bindings` -> `Edit bindings`, enter `img_url` as the `Variable name`, select a pre-created KV namespace as the `KV namespace`, redeploy, then visit http(s)://your-domain/admin to open the dashboard
+
+Any publicly reachable PostgreSQL-compatible database can be used instead of KV:
+
+1. Run `sql/postgres.sql` against the database: `psql "$POSTGRES_URL" -f sql/postgres.sql`
+2. Set `METADATA_PROVIDER=postgres` under Pages `Settings -> Variables and Secrets`
+3. Add `POSTGRES_URL` (or `DATABASE_URL`) as a secret containing the full `postgresql://...` connection string
+4. Enable the `nodejs_compat` compatibility flag for the Pages project and redeploy
+
+Use a least-privilege application account and TLS (normally `sslmode=require`) rather than a PostgreSQL superuser. When both `img_url` and PostgreSQL are configured, `METADATA_PROVIDER` selects the backend; leaving it unset keeps the existing KV behavior. PostgreSQL stores metadata, short links, and caches only—the files remain in Telegram or R2.
 
 ![](https://im.gurl.eu.org/file/a0c212d5dfb61f3652d07.png)
 ![](https://im.gurl.eu.org/file/48b9316ed018b2cb67cf4.png)

@@ -4,6 +4,7 @@ import { jsonResponse } from "./utils/http.js";
 import { createDefaultMetadata, putMetadata } from "./utils/metadata.js";
 import { allocateShortId, isShortUrlsEnabled, putShortLink } from "./utils/shortlink.js";
 import { getUploadProvider } from "./storage/index.js";
+import { hasMetadataStore } from "./utils/metadata-store.js";
 
 export async function onRequestPost(context) {
     const { request, env } = context;
@@ -34,8 +35,8 @@ export async function onRequestPost(context) {
         const longId = await provider.upload(env, uploadFile, { fileName, fileExtension });
         let shortId = null;
 
-        // 将文件信息保存到 KV 存储
-        if (env.img_url) {
+        // Save file metadata to the configured KV or PostgreSQL backend.
+        if (hasMetadataStore(env)) {
             if (isShortUrlsEnabled(env)) {
                 shortId = await allocateShortId(env);
             }

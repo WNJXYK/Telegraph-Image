@@ -86,6 +86,8 @@
 | `ModerateContentApiKey` | `abc123`           | 旧版图片审查，值为 [moderatecontent.com](https://moderatecontent.com/) 的 API key。**该服务已停止新用户注册**，新部署请改用 Workers AI。 |
 | `ALLOWED_REFERERS`  | `myblog.com,*.example.com` | 防盗链：允许引用你文件的域名白名单（逗号分隔）。不设置则不限制；空 Referer（直接访问、API 客户端）和你自己的域名始终放行。 |
 | `STORAGE_PROVIDER`  | `telegram`             | 上传文件的存储后端：`telegram`（默认）或 `r2`（需绑定 `img_r2`）。每个文件都会记住自己存在哪里，切换后旧文件依然可以正常加载。 |
+| `METADATA_PROVIDER` | `postgres`             | 图片元数据后端：`kv`（默认，使用 `img_url`）、`postgres` 或 `none`。使用 PostgreSQL 时需先执行 `sql/postgres.sql`。 |
+| `POSTGRES_URL`      | `postgresql://...`     | PostgreSQL 完整连接字符串，建议以“密钥”保存。`METADATA_PROVIDER=postgres` 时必填；也兼容常见的 `DATABASE_URL` 名称。 |
 | `SITE_NAME`         | `My Images`            | 首页顶部显示的站点名称（通过 `GET /api/config` 下发给前端）。 |
 | `SITE_TITLE`        | `My Images \| Home`    | 首页的浏览器标签页标题。 |
 | `SITE_BACKGROUND`   | `https://.../bg.jpg`   | 首页背景图 URL。 |
@@ -128,6 +130,15 @@
 ### 后台图片管理
 
 默认关闭。开启方式：在 Cloudflare Pages 后台依次点击`设置`->`函数`->`KV 命名空间绑定`->`编辑绑定`->`变量名称`填写：`img_url`，`KV 命名空间`选择你提前创建好的 KV 储存空间，重新部署后访问 http(s)://你的域名/admin 即可打开后台管理页面
+
+也可以使用任意可从公网访问的 PostgreSQL 兼容数据库代替 KV：
+
+1. 在数据库执行 `sql/postgres.sql` 创建表和索引：`psql "$POSTGRES_URL" -f sql/postgres.sql`
+2. 在 Pages 的“设置 -> 变量和密钥”中设置 `METADATA_PROVIDER=postgres`
+3. 将 `POSTGRES_URL`（或 `DATABASE_URL`）设置为密钥，值为完整的 `postgresql://...` 连接字符串
+4. 在 Pages 项目的兼容性标志中启用 `nodejs_compat`，然后重新部署
+
+连接字符串应使用权限受限的应用账号并启用 TLS（通常包含 `sslmode=require`），不要填写 PostgreSQL 超级管理员账号。若同时存在 `img_url`，`METADATA_PROVIDER` 决定使用哪个后端；不设置时继续使用 KV，因而已有部署保持兼容。PostgreSQL 只保存图片元数据、短链接和缓存，图片文件仍存放在 Telegram 或 R2。
 
 ![](https://im.gurl.eu.org/file/a0c212d5dfb61f3652d07.png)
 ![](https://im.gurl.eu.org/file/48b9316ed018b2cb67cf4.png)
